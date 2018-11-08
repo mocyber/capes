@@ -52,7 +52,7 @@ sudo timedatectl set-timezone UTC
 # Set NTP. If you have already set your NTP in accordance with your local standards, you may comment this out.
 if [ ! -e /etc/chrony.conf -a ! -e /etc/ntp.conf ]; then
 
-sudo bash -c 'cat > /etc/chrony.conf <<EOF
+sudo tee /etc/chrony.conf << EOF > /dev/null
 # Use public servers from the pool.ntp.org project.
 # Please consider joining the pool (http://www.pool.ntp.org/join.html).
 server 0.centos.pool.ntp.org iburst
@@ -99,7 +99,7 @@ logchange 0.5
 
 logdir /var/log/chrony
 #log measurements statistics tracking
-EOF'
+EOF
 sudo systemctl enable chronyd.service
 sudo systemctl start chronyd.service
 
@@ -133,7 +133,7 @@ sudo sed -i 's/\#registerName=Mumble\ Server/registerName=CAPES\ -\ Mumble\ Serv
 sudo sed -i 's/port=64738/port=7000/' /etc/murmur.ini
 
 # Rotate logs
-sudo bash -c 'cat > /etc/logrotate.d/murmur <<EOF
+sudo tee /etc/logrotate.d/murmur << EOF > /dev/null
 /var/log/murmur/*log {
     su murmur murmur
     dateext
@@ -146,10 +146,10 @@ sudo bash -c 'cat > /etc/logrotate.d/murmur <<EOF
         /bin/systemctl reload murmur.service > /dev/null 2>/dev/null || true
     endscript
 }
-EOF'
+EOF
 
 # Creating the systemd service
-sudo bash -c 'cat > /etc/systemd/system/murmur.service <<EOF
+sudo tee /etc/systemd/system/murmur.service << EOF > /dev/null
 [Unit]
 Description=Mumble Server (Murmur)
 Requires=network-online.target
@@ -164,12 +164,12 @@ ExecReload=/bin/kill -s HUP $MAINPID
 
 [Install]
 WantedBy=multi-user.target
-EOF'
+EOF
 
 # Generate the pid directory for Murmur:
-sudo bash -c 'cat > /etc/tmpfiles.d/murmur.conf <<EOF
+sudo tee /etc/tmpfiles.d/murmur.conf << EOF > /dev/null
 d /var/run/murmur 775 murmur murmur
-EOF'
+EOF
 
 ################################
 ########## Mattermost ##########
@@ -211,7 +211,7 @@ cd -
 mysql -u root -e "ALTER TABLE mattermost.Audits ENGINE = MyISAM;ALTER TABLE mattermost.ChannelMembers ENGINE = MyISAM;ALTER TABLE mattermost.Channels ENGINE = MyISAM;ALTER TABLE mattermost.ClusterDiscovery ENGINE = MyISAM;ALTER TABLE mattermost.Commands ENGINE = MyISAM;ALTER TABLE mattermost.CommandWebhooks ENGINE = MyISAM;ALTER TABLE mattermost.Compliances ENGINE = MyISAM;ALTER TABLE mattermost.Emoji ENGINE = MyISAM;ALTER TABLE mattermost.FileInfo ENGINE = MyISAM;ALTER TABLE mattermost.IncomingWebhooks ENGINE = MyISAM;ALTER TABLE mattermost.Jobs ENGINE = MyISAM;ALTER TABLE mattermost.Licenses ENGINE = MyISAM;ALTER TABLE mattermost.OAuthAccessData ENGINE = MyISAM;ALTER TABLE mattermost.OAuthApps ENGINE = MyISAM;ALTER TABLE mattermost.OAuthAuthData ENGINE = MyISAM;ALTER TABLE mattermost.OutgoingWebhooks ENGINE = MyISAM;ALTER TABLE mattermost.Posts ENGINE = MyISAM;ALTER TABLE mattermost.Preferences ENGINE = MyISAM;ALTER TABLE mattermost.Reactions ENGINE = MyISAM;ALTER TABLE mattermost.Sessions ENGINE = MyISAM;ALTER TABLE mattermost.Status ENGINE = MyISAM;ALTER TABLE mattermost.Systems ENGINE = MyISAM;ALTER TABLE mattermost.TeamMembers ENGINE = MyISAM;ALTER TABLE mattermost.Teams ENGINE = MyISAM;ALTER TABLE mattermost.Tokens ENGINE = MyISAM;ALTER TABLE mattermost.UserAccessTokens ENGINE = MyISAM;ALTER TABLE mattermost.Users ENGINE = MyISAM;"
 
 # Create the Mattermost service
-sudo bash -c 'cat > /etc/systemd/system/mattermost.service <<EOF
+sudo tee /etc/systemd/system/mattermost.service << EOF > /dev/null
 [Unit]
 Description=Mattermost
 After=syslog.target network.target mariadb.service
@@ -227,7 +227,7 @@ LimitNOFILE=49152
 
 [Install]
 WantedBy=multi-user.target
-EOF'
+EOF
 sudo chmod 664 /etc/systemd/system/mattermost.service
 
 ################################
@@ -266,7 +266,7 @@ sudo useradd -s /usr/sbin/nologin hackmd
 sudo chown -R hackmd:hackmd /opt/hackmd
 
 # Creating the HackMD service
-sudo bash -c 'cat > /etc/systemd/system/hackmd.service <<EOF
+sudo tee /etc/systemd/system/hackmd.service << EOF > /dev/null
 [Unit]
 Description=HackMD Service
 Requires=network-online.target
@@ -281,7 +281,7 @@ ExecStart=/bin/npm start production --prefix /opt/hackmd/
 
 [Install]
 WantedBy=multi-user.target
-EOF'
+EOF
 
 ################################
 ########## Gitea ###############
@@ -322,7 +322,7 @@ sudo chown -R gitea:gitea /opt/gitea
 sudo chmod 744 /opt/gitea/gitea
 
 # Create the Gitea service
-sudo bash -c 'cat > /etc/systemd/system/gitea.service <<EOF
+sudo tee /etc/systemd/system/gitea.service << EOF > /dev/null
 [Unit]
 Description=Gitea (Git with a cup of tea)
 After=syslog.target
@@ -347,7 +347,7 @@ Environment=USER=gitea HOME=/home/gitea
 
 [Install]
 WantedBy=multi-user.target
-EOF'
+EOF
 
 ################################
 ########### TheHive ############
@@ -361,14 +361,14 @@ sudo yum install https://artifacts.elastic.co/downloads/elasticsearch/elasticsea
 sudo yum install python36u python36u-pip python36u-devel -y
 
 # Configure Elasticsearch
-sudo bash -c 'cat > /etc/elasticsearch/elasticsearch.yml <<EOF
+sudo tee /etc/elasticsearch/elasticsearch.yml << EOF > /dev/null
 network.host: 127.0.0.1
 cluster.name: hive
 script.inline: true
 thread_pool.index.queue_size: 100000
 thread_pool.search.queue_size: 100000
 thread_pool.bulk.queue_size: 1000
-EOF'
+EOF
 
 # Collect the Cortex analyzers
 sudo git clone https://github.com/TheHive-Project/Cortex-Analyzers.git /opt/cortex/
@@ -382,24 +382,22 @@ sudo yum install https://dl.bintray.com/thehive-project/rpm-stable/thehive-proje
 sudo yum install thehive cortex -y
 
 # Configure TheHive Project secret key
-(cat << _EOF_
+sudo tee -a /etc/thehive/application.conf << _EOF_ > /dev/null
 # Secret key
 # ~~~~~
 # The secret key is used to secure cryptographics functions.
 # If you deploy your application to several instances be sure to use the same key!
 play.crypto.secret="$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head -n 1)"
 _EOF_
-) | sudo tee -a /etc/thehive/application.conf
 
 # Configure Cortex secret key
-(cat << _EOF_
+sudo tee -a /etc/cortex/application.conf << _EOF_ > /dev/null
 # Secret key
 # ~~~~~
 # The secret key is used to secure cryptographics functions.
 # If you deploy your application to several instances be sure to use the same key!
 play.crypto.secret="$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head -n 1)"
 _EOF_
-) | sudo tee -a /etc/cortex/application.conf
 
 # Add the future Python package, install the Cortex Analyzers, and adjust the Python 3 path to 3.6
 sudo pip install future
@@ -442,7 +440,7 @@ sudo chmod 640 /etc/cortex/application.conf
 sudo sed -i '16i\\t-Dhttp.port=9001 \\' /etc/systemd/system/cortex.service
 
 # Connect TheHive to Cortex
-sudo bash -c 'cat >> /etc/thehive/application.conf <<EOF
+sudo tee /etc/thehive/application.conf << EOF > /dev/null
 # Cortex
 play.modules.enabled += connectors.cortex.CortexConnector
 cortex {
@@ -451,7 +449,7 @@ cortex {
   key = "Cortex-API-key-see-post-installation-instructions"
   }
 }
-EOF'
+EOF
 
 ################################
 ############ Nginx #############
