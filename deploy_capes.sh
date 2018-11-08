@@ -8,8 +8,7 @@
 # To fix this, we are going to disable the GPG signature and local RPM GPG signature checking.
 # I'm open to other options here.
 # RHEL's official statement on this: https://access.redhat.com/solutions/2850911
-sudo sed -i 's/repo_gpgcheck=1/repo_gpgcheck=0/' /etc/yum.conf
-sudo sed -i 's/localpkg_gpgcheck=1/localpkg_gpgcheck=0/' /etc/yum.conf
+sudo sed -i 's/gpgcheck=1/gpgcheck=0/' /etc/yum.conf
 
 ################################
 ##### Collect Credentials ######
