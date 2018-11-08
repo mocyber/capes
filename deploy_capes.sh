@@ -121,6 +121,10 @@ fi
 ########### Mumble #############
 ################################
 
+if systemctl is-active murmur.service; then
+    echo "Mumble is active"
+else
+
 # Prepare the environment
 sudo yum -y install bzip2
 sudo groupadd -r murmur
@@ -130,8 +134,8 @@ sudo chown murmur:murmur /var/log/murmur
 sudo chmod 0770 /var/log/murmur
 
 # Download binaries
-curl -OL https://github.com/mumble-voip/mumble/releases/download/1.2.19/murmur-static_x86-1.2.19.tar.bz2
-tar xjf murmur-static_x86-1.2.19.tar.bz2
+curl -OL4 $CURL_PROXY https://github.com/mumble-voip/mumble/releases/download/1.2.19/murmur-static_x86-1.2.19.tar.bz2
+tar xjf murmur-static_x86-1.2.19.tar.bz2 || exit
 sudo mkdir -p /opt/murmur
 sudo cp -r murmur-static_x86-1.2.19/* /opt/murmur
 sudo cp murmur-static_x86-1.2.19/murmur.ini /etc/murmur.ini
@@ -182,6 +186,14 @@ EOF
 sudo tee /etc/tmpfiles.d/murmur.conf << EOF > /dev/null
 d /var/run/murmur 775 murmur murmur
 EOF
+
+sudo systemctl daemon-reload
+sudo systemctl start murmur.service && sudo systemctl enable murmur.service
+
+# Configure the Murmur SuperUser account
+sudo /opt/murmur/murmur.x86 -ini /etc/murmur.ini -supw $mumblepassphrase
+
+fi
 
 ################################
 ########## Mattermost ##########
@@ -559,7 +571,6 @@ sudo systemctl enable mattermost.service
 sudo systemctl enable elasticsearch.service
 sudo systemctl enable thehive.service
 sudo systemctl enable cortex.service
-sudo systemctl enable murmur.service
 
 # Start all the services
 sudo systemctl start elasticsearch.service
@@ -568,15 +579,11 @@ sudo systemctl start cortex.service
 sudo systemctl start gitea.service
 sudo systemctl start hackmd.service
 sudo systemctl start thehive.service
-sudo systemctl start murmur.service
 sudo systemctl start nginx.service
 sudo systemctl start heartbeat.service
 sudo systemctl start metricbeat.service
 sudo systemctl start filebeat.service
 sudo systemctl start mattermost.service
-
-# Configure the Murmur SuperUser account
-sudo /opt/murmur/murmur.x86 -ini /etc/murmur.ini -supw $mumblepassphrase
 
 ################################
 ### Secure MySQL installtion ###
