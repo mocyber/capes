@@ -42,6 +42,17 @@ IP="$(hostname -I | sed -e 's/ .*$//')"
 grep "$IP" /etc/hosts || echo "$IP $HOSTNAME" | sudo tee -a /etc/hosts
 
 ################################
+######### Proxy detect #########
+################################
+
+PROXY=$(sed -n '/^proxy=/s/.*=//p' < /etc/yum.conf)
+echo PROXY=$PROXY
+if [ -n "$PROXY" ]; then
+    PIP_PROXY="--proxy $(echo $PROXY | sed 's/.*\/\///')"
+    CURL_PROXY="--proxy $PROXY"
+fi
+
+################################
 ######## Configure NTP #########
 ################################
 
