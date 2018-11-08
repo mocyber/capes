@@ -50,6 +50,8 @@ grep "$IP" /etc/hosts || echo "$IP $HOSTNAME" | sudo tee -a /etc/hosts
 sudo timedatectl set-timezone UTC
 
 # Set NTP. If you have already set your NTP in accordance with your local standards, you may comment this out.
+if [ ! -e /etc/chrony.conf -a ! -e /etc/ntp.conf ]; then
+
 sudo bash -c 'cat > /etc/chrony.conf <<EOF
 # Use public servers from the pool.ntp.org project.
 # Please consider joining the pool (http://www.pool.ntp.org/join.html).
@@ -100,6 +102,8 @@ logdir /var/log/chrony
 EOF'
 sudo systemctl enable chronyd.service
 sudo systemctl start chronyd.service
+
+fi
 
 ################################
 ########### Mumble #############
