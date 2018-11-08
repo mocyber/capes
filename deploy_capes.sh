@@ -187,7 +187,7 @@ EOF
 ################################
 
 # Install dependencies
-sudo yum install epel-release mariadb-server firewalld -y
+sudo yum install epel-release mariadb-server -y
 
 # Configure MariaDB
 sudo systemctl start mariadb.service
@@ -525,6 +525,7 @@ sudo sed -i "s/#server\.host: \"localhost\"/server\.host: \"0\.0\.0\.0\"/" /etc/
 ########## Firewall ############
 ################################
 
+sudo yum install firewalld -y
 # Port 80 - Nginx
 # Port 3000 - HackMD
 # Port 4000 - Gitea
