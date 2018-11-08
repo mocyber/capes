@@ -17,23 +17,23 @@ sudo sed -i 's/gpgcheck=1/gpgcheck=0/' /etc/yum.conf
 clear
 # Create your Gitea passphrase
 echo "Create your Gitea passphrase for the MySQL database and press [Enter]. You will create your Gitea administration credentials after the installation."
-read -s giteapassphrase
+read giteapassphrase
 
 # Create your HackMD passphrase
 echo "Create your HackMD passphrase for the MySQL database and press [Enter]. You will create your specific HackMD credentials after the installation."
-read -s hackmdpassphrase
+read hackmdpassphrase
 
 # Create your Mattermost passphrase
 echo "Create your Mattermost passphrase for the MySQL database and press [Enter]. You will create your Mattermost administration credentials after the installation."
-read -s mattermostpassphrase
+read mattermostpassphrase
 
 # Create your Mumble passphrase
 echo "Create your Mumble SuperUser passphrase and press [Enter]."
-read -s mumblepassphrase
+read mumblepassphrase
 
 # Create your CAPES Landing Page passphrase
 echo "Create your CAPES Landing Page passphrase for the account \"operator\" and press [Enter]."
-read -s capespassphrase
+read capespassphrase
 
 # Set your IP address as a variable. This is for instructions below.
 IP="$(hostname -I | sed -e 's/[[:space:]]*$//')"
