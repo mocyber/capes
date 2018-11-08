@@ -111,6 +111,7 @@ logchange 0.5
 logdir /var/log/chrony
 #log measurements statistics tracking
 EOF
+sudo systemctl daemon-reload
 sudo systemctl enable chronyd.service
 sudo systemctl start chronyd.service
 
