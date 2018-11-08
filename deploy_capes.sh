@@ -36,10 +36,10 @@ echo "Create your CAPES Landing Page passphrase for the account \"operator\" and
 read capespassphrase
 
 # Set your IP address as a variable. This is for instructions below.
-IP="$(hostname -I | sed -e 's/[[:space:]]*$//')"
+IP="$(hostname -I | sed -e 's/ .*$//')"
 
 # Update your Host file
-echo "$IP $HOSTNAME" | sudo tee -a /etc/hosts
+grep "$IP" /etc/hosts || echo "$IP $HOSTNAME" | sudo tee -a /etc/hosts
 
 ################################
 ######## Configure NTP #########
