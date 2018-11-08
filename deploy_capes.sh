@@ -201,16 +201,21 @@ fi
 
 # Install dependencies
 sudo yum install epel-release mariadb-server -y
+sudo systemctl start mariadb.service
+sudo systemctl enable mariadb.service
+
+if systemctl is-active mattermost.service; then
+    echo "MatterMost is active"
+else
 
 # Configure MariaDB
-sudo systemctl start mariadb.service
 mysql -u root -e "CREATE DATABASE mattermost;"
 mysql -u root -e "GRANT ALL PRIVILEGES ON mattermost.* TO 'mattermost'@'localhost' IDENTIFIED BY '$mattermostpassphrase';"
 
 # Build Mattermost
 sudo mkdir -p /opt/mattermost/data
-sudo curl -L https://releases.mattermost.com/4.9.2/mattermost-4.9.2-linux-amd64.tar.gz -o /opt/mattermost/mattermost.tar.gz
-sudo tar -xzf /opt/mattermost/mattermost.tar.gz -C /opt/
+sudo curl -L $CURL_PROXY https://releases.mattermost.com/4.9.2/mattermost-4.9.2-linux-amd64.tar.gz -o /opt/mattermost/mattermost.tar.gz
+sudo tar -xzf /opt/mattermost/mattermost.tar.gz -C /opt/ || exit
 
 # Add the Mattermost user with no login
 sudo useradd -s /usr/sbin/nologin mattermost
@@ -227,12 +232,12 @@ sudo sed -i "s/mattermost_test/mattermost/" /opt/mattermost/config/config.json
 sudo sed -i "s/8065/5000/" /opt/mattermost/config/config.json
 
 # Create the Mattermost tables
-cd /opt/mattermost/bin/
+pushd /opt/mattermost/bin/
 sudo -u mattermost /opt/mattermost/bin/./platform
-cd -
+popd
 
 # Correct the MariaDB formatting
-mysql -u root -e "ALTER TABLE mattermost.Audits ENGINE = MyISAM;ALTER TABLE mattermost.ChannelMembers ENGINE = MyISAM;ALTER TABLE mattermost.Channels ENGINE = MyISAM;ALTER TABLE mattermost.ClusterDiscovery ENGINE = MyISAM;ALTER TABLE mattermost.Commands ENGINE = MyISAM;ALTER TABLE mattermost.CommandWebhooks ENGINE = MyISAM;ALTER TABLE mattermost.Compliances ENGINE = MyISAM;ALTER TABLE mattermost.Emoji ENGINE = MyISAM;ALTER TABLE mattermost.FileInfo ENGINE = MyISAM;ALTER TABLE mattermost.IncomingWebhooks ENGINE = MyISAM;ALTER TABLE mattermost.Jobs ENGINE = MyISAM;ALTER TABLE mattermost.Licenses ENGINE = MyISAM;ALTER TABLE mattermost.OAuthAccessData ENGINE = MyISAM;ALTER TABLE mattermost.OAuthApps ENGINE = MyISAM;ALTER TABLE mattermost.OAuthAuthData ENGINE = MyISAM;ALTER TABLE mattermost.OutgoingWebhooks ENGINE = MyISAM;ALTER TABLE mattermost.Posts ENGINE = MyISAM;ALTER TABLE mattermost.Preferences ENGINE = MyISAM;ALTER TABLE mattermost.Reactions ENGINE = MyISAM;ALTER TABLE mattermost.Sessions ENGINE = MyISAM;ALTER TABLE mattermost.Status ENGINE = MyISAM;ALTER TABLE mattermost.Systems ENGINE = MyISAM;ALTER TABLE mattermost.TeamMembers ENGINE = MyISAM;ALTER TABLE mattermost.Teams ENGINE = MyISAM;ALTER TABLE mattermost.Tokens ENGINE = MyISAM;ALTER TABLE mattermost.UserAccessTokens ENGINE = MyISAM;ALTER TABLE mattermost.Users ENGINE = MyISAM;"
+mysql -u root -e "ALTER TABLE mattermost.Audits ENGINE = MyISAM;ALTER TABLE mattermost.ChannelMembers ENGINE = MyISAM;ALTER TABLE mattermost.Channels ENGINE = MyISAM;ALTER TABLE mattermost.ClusterDiscovery ENGINE = MyISAM;ALTER TABLE mattermost.Commands ENGINE = MyISAM;ALTER TABLE mattermost.CommandWebhooks ENGINE = MyISAM;ALTER TABLE mattermost.Compliances ENGINE = MyISAM;ALTER TABLE mattermost.Emoji ENGINE = MyISAM;ALTER TABLE mattermost.FileInfo ENGINE = MyISAM;ALTER TABLE mattermost.IncomingWebhooks ENGINE = MyISAM;ALTER TABLE mattermost.Jobs ENGINE = MyISAM;ALTER TABLE mattermost.Licenses ENGINE = MyISAM;ALTER TABLE mattermost.OAuthAccessData ENGINE = MyISAM;ALTER TABLE mattermost.OAuthApps ENGINE = MyISAM;ALTER TABLE mattermost.OAuthAuthData ENGINE = MyISAM;ALTER TABLE mattermost.OutgoingWebhooks ENGINE = MyISAM;ALTER TABLE mattermost.Posts ENGINE = MyISAM;ALTER TABLE mattermost.Preferences ENGINE = MyISAM;ALTER TABLE mattermost.Reactions ENGINE = MyISAM;ALTER TABLE mattermost.Sessions ENGINE = MyISAM;ALTER TABLE mattermost.Status ENGINE = MyISAM;ALTER TABLE mattermost.Systems ENGINE = MyISAM;ALTER TABLE mattermost.TeamMembers ENGINE = MyISAM;ALTER TABLE mattermost.Teams ENGINE = MyISAM;ALTER TABLE mattermost.Tokens ENGINE = MyISAM;ALTER TABLE mattermost.UserAccessTokens ENGINE = MyISAM;ALTER TABLE mattermost.Users ENGINE = MyISAM;" || exit
 
 # Create the Mattermost service
 sudo tee /etc/systemd/system/mattermost.service << EOF > /dev/null
@@ -253,6 +258,11 @@ LimitNOFILE=49152
 WantedBy=multi-user.target
 EOF
 sudo chmod 664 /etc/systemd/system/mattermost.service
+
+sudo systemctl daemon-reload
+sudo systemctl start mattermost.service && sudo systemctl enable mattermost.service
+
+fi
 
 ################################
 ############ HackMD ############
@@ -567,7 +577,6 @@ sudo systemctl enable metricbeat.service
 sudo systemctl enable mariadb.service
 sudo systemctl enable hackmd.service
 sudo systemctl enable gitea.service
-sudo systemctl enable mattermost.service
 sudo systemctl enable elasticsearch.service
 sudo systemctl enable thehive.service
 sudo systemctl enable cortex.service
@@ -583,7 +592,6 @@ sudo systemctl start nginx.service
 sudo systemctl start heartbeat.service
 sudo systemctl start metricbeat.service
 sudo systemctl start filebeat.service
-sudo systemctl start mattermost.service
 
 ################################
 ### Secure MySQL installtion ###
