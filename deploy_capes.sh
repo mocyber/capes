@@ -531,7 +531,7 @@ sudo chmod 640 /etc/cortex/application.conf
 sudo sed -i '16i\\t-Dhttp.port=9001 \\' /etc/systemd/system/cortex.service
 
 # Connect TheHive to Cortex
-sudo tee /etc/thehive/application.conf << EOF > /dev/null
+sudo tee -a /etc/thehive/application.conf << EOF > /dev/null
 # Cortex
 play.modules.enabled += connectors.cortex.CortexConnector
 cortex {
