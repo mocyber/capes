@@ -132,7 +132,7 @@ fi
 ########### Mumble #############
 ################################
 
-if systemctl is-active murmur.service; then
+if systemctl -q is-active murmur.service; then
     echo "Mumble is active"
 else
 
@@ -219,7 +219,7 @@ sudo yum install epel-release mariadb-server -y
 sudo systemctl daemon-reload
 sudo systemctl start mariadb.service && sudo systemctl enable mariadb.service
 
-if systemctl is-active mattermost.service; then
+if systemctl -q is-active mattermost.service; then
     echo "MatterMost is active"
 else
 
@@ -286,7 +286,7 @@ fi
 # Install dependencies
 sudo yum install npm gcc-c++ git -y
 
-if systemctl is-active hackmd.service; then
+if systemctl -q is-active hackmd.service; then
     echo "HackMD is active"
 else
 
@@ -361,7 +361,7 @@ fi
 sudo yum install http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm -y
 sudo yum update git -y
 
-if systemctl is-active gitea.service; then
+if systemctl -q is-active gitea.service; then
     echo "Gitea is active"
 else
 
@@ -437,7 +437,7 @@ sudo rpm --import $RPM_PROXY https://artifacts.elastic.co/GPG-KEY-elasticsearch
 sudo yum install https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.6.0.rpm https://centos7.iuscommunity.org/ius-release.rpm libffi-devel python-devel python-pip ssdeep-devel ssdeep-libs perl-Image-ExifTool file-devel -y
 sudo yum install python36u python36u-pip python36u-devel -y
 
-if systemctl is-active elasticsearch.service; then
+if systemctl -q is-active elasticsearch.service; then
     echo "ElasticSearch is active"
 else
 
