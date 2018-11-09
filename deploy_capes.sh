@@ -429,7 +429,7 @@ fi
 # Install Dependencies
 sudo yum install java-1.8.0-openjdk.x86_64 gcc-c++ -y
 sudo yum groupinstall "Development Tools" -y
-sudo rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
+sudo rpm --import $RPM_PROXY https://artifacts.elastic.co/GPG-KEY-elasticsearch
 sudo yum install https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.6.0.rpm https://centos7.iuscommunity.org/ius-release.rpm libffi-devel python-devel python-pip ssdeep-devel ssdeep-libs perl-Image-ExifTool file-devel -y
 sudo yum install python36u python36u-pip python36u-devel -y
 
@@ -448,15 +448,14 @@ thread_pool.bulk.queue_size: 1000
 EOF
 
 # Collect the Cortex analyzers
-rm -rf /opt/cortex
+sudo rm -rf /opt/cortex
 sudo git clone $GIT_PROXY https://github.com/TheHive-Project/Cortex-Analyzers.git /opt/cortex/
 
 # Install TheHive Project and Cortex
 # TheHive Project is the incident tracker, Cortex is your analysis engine.
 # If you're going to be using this offline, you can remove the Cortex install (sudo yum install thehive -y).
-sudo rpm --import https://dl.bintray.com/cert-bdf/rpm/repodata/repomd.xml.key
+sudo rpm --import $RPM_PROXY https://dl.bintray.com/thehive-project/rpm-stable/repodata/repomd.xml.key
 sudo yum install https://dl.bintray.com/thehive-project/rpm-stable/thehive-project-release-1.1.0-1.noarch.rpm -y
-#sudo yum install https://dl.bintray.com/cert-bdf/rpm/thehive-project-release-1.0.0-3.noarch.rpm -y
 sudo yum install thehive cortex -y
 
 # Configure TheHive Project secret key
@@ -490,6 +489,12 @@ sed -i "s/ssdeep/ssdeep\;python_version>='3.5'/" requirements.txt
 echo "urllib3;python_version>='3.5'" >> requirements.txt
 sed -i '/requestscortexutils/d' requirements.txt
 sudo /usr/bin/pip2.7 install $PIP_PROXY -r requirements.txt
+
+# HACK: why must I manually install these?
+sudo /usr/bin/pip3.6 install $PIP_PROXY six
+sudo /usr/bin/pip3.6 install $PIP_PROXY pytest-runner
+sudo /usr/bin/pip3.6 install $PIP_PROXY cffi
+
 sudo /usr/bin/pip3.6 install $PIP_PROXY -r requirements.txt
 rm requirements.txt
 for d in /opt/cortex/analyzers/* ; do (sudo /usr/bin/sed -i 's/python3/python3.6/' $d/*.py); done
@@ -529,6 +534,7 @@ cortex {
 }
 EOF
 
+sudo systemctl daemon-reload
 sudo systemctl start elasticsearch.service && sudo systemctl enable elasticsearch.service
 sudo systemctl start cortex.service && sudo systemctl enable cortex.service
 sudo systemctl start thehive.service && sudo systemctl enable thehive.service
