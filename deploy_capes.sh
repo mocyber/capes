@@ -160,6 +160,7 @@ sudo sed -i 's/\#registerName=Mumble\ Server/registerName=CAPES\ -\ Mumble\ Serv
 sudo sed -i 's/port=64738/port=7000/' /etc/murmur.ini
 
 # Rotate logs
+sudo mkdir -p /etc/logrotate.d
 sudo tee /etc/logrotate.d/murmur << EOF > /dev/null
 /var/log/murmur/*log {
     su murmur murmur
@@ -176,6 +177,7 @@ sudo tee /etc/logrotate.d/murmur << EOF > /dev/null
 EOF
 
 # Creating the systemd service
+sudo mkdir -p /etc/systemd/system
 sudo tee /etc/systemd/system/murmur.service << EOF > /dev/null
 [Unit]
 Description=Mumble Server (Murmur)
@@ -194,6 +196,7 @@ WantedBy=multi-user.target
 EOF
 
 # Generate the pid directory for Murmur:
+sudo mkdir -p /etc/tmpfiles.d
 sudo tee /etc/tmpfiles.d/murmur.conf << EOF > /dev/null
 d /var/run/murmur 775 murmur murmur
 EOF
@@ -438,6 +441,7 @@ if systemctl is-active elasticsearch.service; then
 else
 
 # Configure Elasticsearch
+sudo mkdir -p /etc/elasticsearch
 sudo tee /etc/elasticsearch/elasticsearch.yml << EOF > /dev/null
 network.host: 127.0.0.1
 cluster.name: hive
@@ -459,6 +463,7 @@ sudo yum install https://dl.bintray.com/thehive-project/rpm-stable/thehive-proje
 sudo yum install thehive cortex -y
 
 # Configure TheHive Project secret key
+sudo mkdir -p /etc/thehive
 sudo tee -a /etc/thehive/application.conf << _EOF_ > /dev/null
 # Secret key
 # ~~~~~
@@ -468,6 +473,7 @@ play.crypto.secret="$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head 
 _EOF_
 
 # Configure Cortex secret key
+sudo mkdir -p /etc/cortex
 sudo tee -a /etc/cortex/application.conf << _EOF_ > /dev/null
 # Secret key
 # ~~~~~
@@ -574,6 +580,7 @@ sudo curl https://gchq.github.io/CyberChef/cyberchef.htm -o /usr/share/nginx/htm
 ################################
 
 sudo yum install -y https://artifacts.elastic.co/downloads/beats/heartbeat/heartbeat-5.6.5-x86_64.rpm
+sudo mkdir -p /etc/heartbeat
 sudo cp beats/heartbeat.yml /etc/heartbeat/heartbeat.yml
 sudo sed -i "s/passphrase/$capespassphrase/" /etc/heartbeat/heartbeat.yml
 
@@ -581,6 +588,7 @@ sudo sed -i "s/passphrase/$capespassphrase/" /etc/heartbeat/heartbeat.yml
 ######### Filebeat #############
 ################################
 sudo yum install -y https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-5.6.5-x86_64.rpm
+sudo mkdir -p /etc/filebeat
 sudo cp beats/filebeat.yml /etc/filebeat/filebeat.yml
 sudo /usr/share/elasticsearch/bin/elasticsearch-plugin install ingest-user-agent
 sudo /usr/share/elasticsearch/bin/elasticsearch-plugin install ingest-geoip
@@ -590,6 +598,7 @@ sudo /usr/share/elasticsearch/bin/elasticsearch-plugin install ingest-geoip
 ################################
 
 sudo yum install -y https://artifacts.elastic.co/downloads/beats/metricbeat/metricbeat-5.6.5-x86_64.rpm
+sudo mkdir -p /etc/metricbeat
 sudo cp beats/metricbeat.yml /etc/metricbeat/metricbeat.yml
 sudo sed -i "s/hostname/$HOSTNAME/" /etc/metricbeat/metricbeat.yml
 
