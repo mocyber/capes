@@ -560,11 +560,11 @@ sudo htpasswd -bc /etc/nginx/.htpasswd operator $capespassphrase
 sudo sed -i '43 a \\tauth_basic "CAPES Login";' /etc/nginx/nginx.conf
 sudo sed -i '44 a \\tauth_basic_user_file /etc/nginx/.htpasswd;' /etc/nginx/nginx.conf
 
-# Update the landing page index file
-sed -i "s/your-ip/$IP/" landing_page/index.html
-
 # Move landing page framework into Nginx's working directory
 sudo cp -r landing_page/* /usr/share/nginx/html/
+
+# Update the landing page index file
+sudo sed -i "s/your-ip/$IP/" /usr/share/nginx/html/index.html
 
 # Perform a little housekeeping
 sudo rm /usr/share/nginx/html/build_operate_maintain.md /usr/share/nginx/html/deploy_landing_page.sh /usr/share/nginx/html/README.md
