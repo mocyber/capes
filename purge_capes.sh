@@ -48,12 +48,11 @@ sudo yum erase -y nginx httpd-tools
 sudo rm -f -r /usr/share/nginx/html/*
 sudo rm -f -r /etc/nginx/
 
-sudo yum erase -y thehive cortex
-sudo rm -f /etc/thehive/application.conf* /etc/cortex/application.conf*
-sudo rmdir /etc/cortex/ /etc/thehive/ /opt/cortex/* /opt/cortex/ /opt/thehive/* /opt/thehive/
+sudo yum erase -y cortex thehive
+sudo rm -rf /etc/cortex/ /etc/thehive/ /opt/cortex/ /opt/thehive/
 
 sudo yum erase -y elasticsearch-5.6.0
-sudo rm -f /etc/elasticsearch/elasticsearch.yml*
+sudo rm -rf /etc/elasticsearch/
 
 sudo rm -f /etc/systemd/system/gitea.service*
 sudo rm -f -r /opt/gitea
@@ -66,7 +65,7 @@ sudo rm -f -r /opt/hackmd
 
 mysql -uroot -e "DROP DATABASE mattermost;"
 sudo rm -f /etc/systemd/system/mattermost.service*
-sudo rmdir /opt/mattermost/data /opt/mattermost/
+sudo rm -f -r /opt/mattermost/
 
 sudo rm -f /etc/tmpfiles.d/murmur.conf* /etc/systemd/system/murmur.service* /etc/logrotate.d/murmur* /etc/murmur.ini*
 sudo rm -f -r /opt/murmur /var/log/murmur
