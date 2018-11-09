@@ -45,12 +45,22 @@ grep "$IP" /etc/hosts || echo "$IP $HOSTNAME" | sudo tee -a /etc/hosts
 ######### Proxy detect #########
 ################################
 
-PROXY=$(sed -n '/^proxy=/s/.*=//p' < /etc/yum.conf)
-echo PROXY=$PROXY
-if [ -n "$PROXY" ]; then
-    PIP_PROXY="--proxy $(echo $PROXY | sed 's/.*\/\///')"
-    CURL_PROXY="--proxy $PROXY"
-    GIT_PROXY="-c http.proxy=$PROXY"
+FULL_PRXY=$(sed -n '/^proxy=/s/.*=//p' < /etc/yum.conf)
+echo FULL_PRXY=$FULL_PRXY
+if [ -n "$FULL_PRXY" ]; then
+    PRXY_TUPL="$(echo $FULL_PRXY | sed 's/.*\/\///')"
+    PRXY_HOST="$(echo $FULL_PRXY | sed 's/.*\/\/\(.*\):.*/\1/')"
+    PRXY_PORT="$(echo $FULL_PRXY | sed 's/.*\/\/.*://')"
+    echo PRXY_TUPL=$PRXY_TUPL
+    echo PRXY_HOST=$PRXY_HOST
+    echo PRXY_PORT=$PRXY_PORT
+
+    PIP_PROXY="--proxy $PRXY_TUPL"
+    CURL_PROXY="--proxy $FULL_PRXY"
+    GIT_PROXY="-c http.proxy=$FULL_PRXY"
+    RPM_PROXY="--httpproxy $PRXY_TUPL"
+    ES_PROXY="ES_JAVA_OPTS=-Dhttps.proxyHost=$PRXY_HOST\ -Dhttps.proxyPort=$PRXY_PORT"
+    echo $ES_PROXY
 fi
 
 ################################
