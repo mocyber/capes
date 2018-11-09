@@ -50,6 +50,7 @@ echo PROXY=$PROXY
 if [ -n "$PROXY" ]; then
     PIP_PROXY="--proxy $(echo $PROXY | sed 's/.*\/\///')"
     CURL_PROXY="--proxy $PROXY"
+    GIT_PROXY="-c http.proxy=$PROXY"
 fi
 
 ################################
@@ -271,13 +272,27 @@ fi
 # Install dependencies
 sudo yum install npm gcc-c++ git -y
 
+if systemctl is-active hackmd.service; then
+    echo "HackMD is active"
+else
+
+# set npm's proxy config if needed
+if [ "$PROXY" ]; then
+    sudo npm config set proxy $PROXY
+    sudo npm config set https-proxy $PROXY
+    sudo git config --global https.proxy $PROXY
+    sudo git config --global http.proxy $PROXY
+    sudo git config --global url."https://".insteadOf git://
+fi
+
 # Stage HackMD for building
-sudo npm install -g uws node-gyp tap webpack grunt yarn
-sudo yarn add -D webpack-cli
-sudo git clone https://github.com/hackmdio/hackmd.git /opt/hackmd/
-cd /opt/hackmd
+sudo rm -rf /opt/hackmd
+sudo git clone $GIT_PROXY https://github.com/hackmdio/hackmd.git /opt/hackmd || exit
+sudo npm install -g uws node-gyp tap webpack grunt yarn || exit
+sudo yarn add -D webpack-cli || exit
+pushd /opt/hackmd
 sudo bin/setup
-cd -
+popd
 
 # Set up the HackMD database
 mysql -u root -e "CREATE DATABASE hackmd;"
@@ -316,6 +331,11 @@ ExecStart=/bin/npm start production --prefix /opt/hackmd/
 [Install]
 WantedBy=multi-user.target
 EOF
+
+sudo systemctl daemon-reload
+sudo systemctl start hackmd.service && sudo systemctl enable hackmd.service
+
+fi
 
 ################################
 ########## Gitea ###############
@@ -575,7 +595,6 @@ sudo systemctl enable heartbeat.service
 sudo systemctl enable filebeat.service
 sudo systemctl enable metricbeat.service
 sudo systemctl enable mariadb.service
-sudo systemctl enable hackmd.service
 sudo systemctl enable gitea.service
 sudo systemctl enable elasticsearch.service
 sudo systemctl enable thehive.service
@@ -586,7 +605,6 @@ sudo systemctl start elasticsearch.service
 sudo systemctl start kibana.service
 sudo systemctl start cortex.service
 sudo systemctl start gitea.service
-sudo systemctl start hackmd.service
 sudo systemctl start thehive.service
 sudo systemctl start nginx.service
 sudo systemctl start heartbeat.service
