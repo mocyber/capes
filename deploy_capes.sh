@@ -471,7 +471,7 @@ sudo tee -a /etc/thehive/application.conf << _EOF_ > /dev/null
 # ~~~~~
 # The secret key is used to secure cryptographics functions.
 # If you deploy your application to several instances be sure to use the same key!
-play.crypto.secret="$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head -n 1)"
+play.http.secret.key="$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head -n 1)"
 _EOF_
 
 # Configure Cortex secret key
