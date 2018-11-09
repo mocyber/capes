@@ -59,7 +59,8 @@ if [ -n "$FULL_PRXY" ]; then
     CURL_PROXY="--proxy $FULL_PRXY"
     GIT_PROXY="-c http.proxy=$FULL_PRXY"
     RPM_PROXY="--httpproxy $PRXY_TUPL"
-    ES_PROXY="ES_JAVA_OPTS=-Dhttps.proxyHost=$PRXY_HOST\ -Dhttps.proxyPort=$PRXY_PORT"
+    ES_PROXY="export ES_JAVA_OPTS=-Dhttps.proxyHost=$PRXY_HOST\ -Dhttps.proxyPort=$PRXY_PORT; echo \$ES_JAVA_OPTS; "
+
     echo $ES_PROXY
 fi
 
@@ -597,8 +598,8 @@ sudo systemctl start heartbeat.service && sudo systemctl enable heartbeat.servic
 sudo yum install -y https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-5.6.5-x86_64.rpm
 sudo mkdir -p /etc/filebeat
 sudo cp beats/filebeat.yml /etc/filebeat/filebeat.yml
-sudo /usr/share/elasticsearch/bin/elasticsearch-plugin install ingest-user-agent
-sudo /usr/share/elasticsearch/bin/elasticsearch-plugin install ingest-geoip
+sudo bash -c "$ES_PROXY /usr/share/elasticsearch/bin/elasticsearch-plugin install ingest-user-agent"
+sudo bash -c "$ES_PROXY /usr/share/elasticsearch/bin/elasticsearch-plugin install ingest-geoip"
 
 sudo systemctl daemon-reload
 sudo systemctl start filebeat.service && sudo systemctl enable filebeat.service
