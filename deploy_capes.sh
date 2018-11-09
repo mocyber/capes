@@ -347,6 +347,10 @@ fi
 sudo yum install http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm -y
 sudo yum update git -y
 
+if systemctl is-active gitea.service; then
+    echo "Gitea is active"
+else
+
 # Configure MariaDB
 mysql -u root -e "CREATE DATABASE gitea;"
 mysql -u root -e "GRANT ALL PRIVILEGES ON gitea.* TO 'gitea'@'localhost' IDENTIFIED BY '$giteapassphrase';"
@@ -371,7 +375,7 @@ sudo useradd -s /usr/sbin/nologin gitea
 
 # Grab Gitea and make it a home
 sudo mkdir -p /opt/gitea
-sudo curl -L https://dl.gitea.io/gitea/master/gitea-master-linux-amd64 -o /opt/gitea/gitea
+sudo curl -L $CURL_PROXY https://dl.gitea.io/gitea/master/gitea-master-linux-amd64 -o /opt/gitea/gitea
 sudo chown -R gitea:gitea /opt/gitea
 sudo chmod 744 /opt/gitea/gitea
 
@@ -402,6 +406,11 @@ Environment=USER=gitea HOME=/home/gitea
 [Install]
 WantedBy=multi-user.target
 EOF
+
+sudo systemctl daemon-reload
+sudo systemctl start gitea.service && sudo systemctl enable gitea.service
+
+fi
 
 ################################
 ########### TheHive ############
@@ -595,7 +604,6 @@ sudo systemctl enable heartbeat.service
 sudo systemctl enable filebeat.service
 sudo systemctl enable metricbeat.service
 sudo systemctl enable mariadb.service
-sudo systemctl enable gitea.service
 sudo systemctl enable elasticsearch.service
 sudo systemctl enable thehive.service
 sudo systemctl enable cortex.service
@@ -604,7 +612,6 @@ sudo systemctl enable cortex.service
 sudo systemctl start elasticsearch.service
 sudo systemctl start kibana.service
 sudo systemctl start cortex.service
-sudo systemctl start gitea.service
 sudo systemctl start thehive.service
 sudo systemctl start nginx.service
 sudo systemctl start heartbeat.service
