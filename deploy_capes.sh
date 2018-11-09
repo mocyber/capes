@@ -201,6 +201,7 @@ sudo tee /etc/tmpfiles.d/murmur.conf << EOF > /dev/null
 d /var/run/murmur 775 murmur murmur
 EOF
 
+sudo systemd-tmpfiles --create /etc/tmpfiles.d/murmur.conf
 sudo systemctl daemon-reload
 sudo systemctl start murmur.service && sudo systemctl enable murmur.service
 
@@ -215,8 +216,8 @@ fi
 
 # Install dependencies
 sudo yum install epel-release mariadb-server -y
-sudo systemctl start mariadb.service
-sudo systemctl enable mariadb.service
+sudo systemctl daemon-reload
+sudo systemctl start mariadb.service && sudo systemctl enable mariadb.service
 
 if systemctl is-active mattermost.service; then
     echo "MatterMost is active"
@@ -573,7 +574,10 @@ sudo rm /usr/share/nginx/html/build_operate_maintain.md /usr/share/nginx/html/de
 ################################
 
 # Collect CyberChef
-sudo curl https://gchq.github.io/CyberChef/cyberchef.htm -o /usr/share/nginx/html/cyberchef.htm
+sudo curl $CURL_PROXY https://gchq.github.io/CyberChef/cyberchef.htm -o /usr/share/nginx/html/cyberchef.htm
+
+sudo systemctl daemon-reload
+sudo systemctl start nginx.service && sudo systemctl enable nginx.service
 
 ################################
 ######## Heartbeat #############
@@ -583,15 +587,21 @@ sudo yum install -y https://artifacts.elastic.co/downloads/beats/heartbeat/heart
 sudo mkdir -p /etc/heartbeat
 sudo cp beats/heartbeat.yml /etc/heartbeat/heartbeat.yml
 sudo sed -i "s/passphrase/$capespassphrase/" /etc/heartbeat/heartbeat.yml
+sudo systemctl daemon-reload
+sudo systemctl start heartbeat.service && sudo systemctl enable heartbeat.service
 
 ################################
 ######### Filebeat #############
 ################################
+
 sudo yum install -y https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-5.6.5-x86_64.rpm
 sudo mkdir -p /etc/filebeat
 sudo cp beats/filebeat.yml /etc/filebeat/filebeat.yml
 sudo /usr/share/elasticsearch/bin/elasticsearch-plugin install ingest-user-agent
 sudo /usr/share/elasticsearch/bin/elasticsearch-plugin install ingest-geoip
+
+sudo systemctl daemon-reload
+sudo systemctl start filebeat.service && sudo systemctl enable filebeat.service
 
 ################################
 ######## Metricbeat ############
@@ -601,6 +611,8 @@ sudo yum install -y https://artifacts.elastic.co/downloads/beats/metricbeat/metr
 sudo mkdir -p /etc/metricbeat
 sudo cp beats/metricbeat.yml /etc/metricbeat/metricbeat.yml
 sudo sed -i "s/hostname/$HOSTNAME/" /etc/metricbeat/metricbeat.yml
+sudo systemctl daemon-reload
+sudo systemctl start metricbeat.service && sudo systemctl enable metricbeat.service
 
 ################################
 ########### Kibana #############
@@ -608,6 +620,8 @@ sudo sed -i "s/hostname/$HOSTNAME/" /etc/metricbeat/metricbeat.yml
 
 sudo yum install -y https://artifacts.elastic.co/downloads/kibana/kibana-5.6.5-x86_64.rpm
 sudo sed -i "s/#server\.host: \"localhost\"/server\.host: \"0\.0\.0\.0\"/" /etc/kibana/kibana.yml
+sudo systemctl daemon-reload
+sudo systemctl start kibana.service && sudo systemctl enable kibana.service
 
 ################################
 ########## Firewall ############
@@ -624,29 +638,6 @@ sudo yum install firewalld -y
 # Port 9001 - Cortex (TheHive Analyzer Plugin)
 sudo firewall-cmd --add-port=80/tcp --add-port=3000/tcp --add-port=4000/tcp --add-port=5000/tcp --add-port=5601/tcp --add-port=9000/tcp --add-port=9001/tcp --add-port=7000/tcp --add-port=7000/udp --permanent
 sudo firewall-cmd --reload
-
-################################
-########## Services ############
-################################
-
-# Prepare the service environment
-sudo systemd-tmpfiles --create /etc/tmpfiles.d/murmur.conf
-sudo systemctl daemon-reload
-
-# Configure services for autostart
-sudo systemctl enable nginx.service
-sudo systemctl enable kibana.service
-sudo systemctl enable heartbeat.service
-sudo systemctl enable filebeat.service
-sudo systemctl enable metricbeat.service
-sudo systemctl enable mariadb.service
-
-# Start all the services
-sudo systemctl start kibana.service
-sudo systemctl start nginx.service
-sudo systemctl start heartbeat.service
-sudo systemctl start metricbeat.service
-sudo systemctl start filebeat.service
 
 ################################
 ### Secure MySQL installtion ###
