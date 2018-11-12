@@ -308,6 +308,7 @@ sudo yarn add -D webpack-cli || exit
 pushd /opt/hackmd
 sudo bin/setup
 popd
+sudo rm -f yarn.lock package.json
 
 # Set up the HackMD database
 mysql -u root -e "CREATE DATABASE hackmd;"
