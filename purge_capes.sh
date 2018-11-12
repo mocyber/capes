@@ -39,25 +39,25 @@ sudo systemctl disable elasticsearch.service
 #sudo firewall-cmd --remove-port=80/tcp --remove-port=3000/tcp --remove-port=4000/tcp --remove-port=5000/tcp --remove-port=5601/tcp --remove-port=9000/tcp --remove-port=9001/tcp --remove-port=7000/tcp --remove-port=7000/udp --permanent
 #sudo firewall-cmd --reload
 
-sudo yum erase -y kibana-5.6.5 metricbeat-5.6.5 filebeat-5.6.5 heartbeat-5.6.5
+sudo yum remove -y kibana-5.6.5 metricbeat-5.6.5 filebeat-5.6.5 heartbeat-5.6.5
 sudo rm -f -r /etc/filebeat/ /etc/heartbeat/ /etc/metricbeat/ /etc/kibana/
 
 sudo rm -f /usr/share/nginx/html/cyberchef.htm
 
-sudo yum erase -y nginx httpd-tools
+sudo yum remove -y nginx httpd-tools
 sudo rm -f -r /usr/share/nginx/html/*
 sudo rm -f -r /etc/nginx/
 
-sudo yum erase -y cortex thehive
+sudo yum remove -y cortex thehive
 sudo rm -rf /etc/cortex/ /etc/thehive/ /opt/cortex/ /opt/thehive/
 
-sudo yum erase -y elasticsearch-5.6.0
+sudo yum remove -y elasticsearch-5.6.0
 sudo rm -rf /etc/elasticsearch/
 
 sudo rm -f /etc/systemd/system/gitea.service*
 sudo rm -f -r /opt/gitea
 mysql -uroot -e "DROP DATABASE gitea;"
-sudo yum erase -y wandisco-git-release-7-2
+sudo yum remove -y wandisco-git-release-7-2
 
 mysql -uroot -e "DROP DATABASE hackmd;"
 sudo rm -f /etc/systemd/system/hackmd.service*
