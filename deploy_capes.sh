@@ -8,8 +8,7 @@
 # To fix this, we are going to disable the GPG signature and local RPM GPG signature checking.
 # I'm open to other options here.
 # RHEL's official statement on this: https://access.redhat.com/solutions/2850911
-sudo sed -i 's/repo_gpgcheck=1/repo_gpgcheck=0/' /etc/yum.conf
-sudo sed -i 's/localpkg_gpgcheck=1/localpkg_gpgcheck=0/' /etc/yum.conf
+sudo sed -i 's/gpgcheck=1/gpgcheck=0/' /etc/yum.conf
 
 ################################
 ##### Collect Credentials ######
@@ -18,29 +17,52 @@ sudo sed -i 's/localpkg_gpgcheck=1/localpkg_gpgcheck=0/' /etc/yum.conf
 clear
 # Create your Gitea passphrase
 echo "Create your Gitea passphrase for the MySQL database and press [Enter]. You will create your Gitea administration credentials after the installation."
-read -s giteapassphrase
+read giteapassphrase
 
 # Create your HackMD passphrase
 echo "Create your HackMD passphrase for the MySQL database and press [Enter]. You will create your specific HackMD credentials after the installation."
-read -s hackmdpassphrase
+read hackmdpassphrase
 
 # Create your Mattermost passphrase
 echo "Create your Mattermost passphrase for the MySQL database and press [Enter]. You will create your Mattermost administration credentials after the installation."
-read -s mattermostpassphrase
+read mattermostpassphrase
 
 # Create your Mumble passphrase
 echo "Create your Mumble SuperUser passphrase and press [Enter]."
-read -s mumblepassphrase
+read mumblepassphrase
 
 # Create your CAPES Landing Page passphrase
 echo "Create your CAPES Landing Page passphrase for the account \"operator\" and press [Enter]."
-read -s capespassphrase
+read capespassphrase
 
 # Set your IP address as a variable. This is for instructions below.
-IP="$(hostname -I | sed -e 's/[[:space:]]*$//')"
+IP="$(hostname -I | sed -e 's/ .*$//')"
 
 # Update your Host file
-echo "$IP $HOSTNAME" | sudo tee -a /etc/hosts
+grep "$IP" /etc/hosts || echo "$IP $HOSTNAME" | sudo tee -a /etc/hosts
+
+################################
+######### Proxy detect #########
+################################
+
+FULL_PRXY=$(sed -n '/^proxy=/s/.*=//p' < /etc/yum.conf)
+echo FULL_PRXY=$FULL_PRXY
+if [ -n "$FULL_PRXY" ]; then
+    PRXY_TUPL="$(echo $FULL_PRXY | sed 's/.*\/\///')"
+    PRXY_HOST="$(echo $FULL_PRXY | sed 's/.*\/\/\(.*\):.*/\1/')"
+    PRXY_PORT="$(echo $FULL_PRXY | sed 's/.*\/\/.*://')"
+    echo PRXY_TUPL=$PRXY_TUPL
+    echo PRXY_HOST=$PRXY_HOST
+    echo PRXY_PORT=$PRXY_PORT
+
+    PIP_PROXY="--proxy $PRXY_TUPL"
+    CURL_PROXY="--proxy $FULL_PRXY"
+    GIT_PROXY="-c http.proxy=$FULL_PRXY"
+    RPM_PROXY="--httpproxy $PRXY_TUPL"
+    ES_PROXY="export ES_JAVA_OPTS=-Dhttps.proxyHost=$PRXY_HOST\ -Dhttps.proxyPort=$PRXY_PORT; echo \$ES_JAVA_OPTS; "
+
+    echo $ES_PROXY
+fi
 
 ################################
 ######## Configure NTP #########
@@ -51,7 +73,9 @@ echo "$IP $HOSTNAME" | sudo tee -a /etc/hosts
 sudo timedatectl set-timezone UTC
 
 # Set NTP. If you have already set your NTP in accordance with your local standards, you may comment this out.
-sudo bash -c 'cat > /etc/chrony.conf <<EOF
+if [ ! -e /etc/chrony.conf -a ! -e /etc/ntp.conf ]; then
+
+sudo tee /etc/chrony.conf << EOF > /dev/null
 # Use public servers from the pool.ntp.org project.
 # Please consider joining the pool (http://www.pool.ntp.org/join.html).
 server 0.centos.pool.ntp.org iburst
@@ -98,16 +122,23 @@ logchange 0.5
 
 logdir /var/log/chrony
 #log measurements statistics tracking
-EOF'
+EOF
+sudo systemctl daemon-reload
 sudo systemctl enable chronyd.service
 sudo systemctl start chronyd.service
+
+fi
 
 ################################
 ########### Mumble #############
 ################################
 
+if systemctl -q is-active murmur.service; then
+    echo "Mumble is active"
+else
+
 # Prepare the environment
-sudo yum -y install bzip2 && sudo yum -y update
+sudo yum -y install bzip2
 sudo groupadd -r murmur
 sudo useradd -r -g murmur -m -d /var/lib/murmur -s /sbin/nologin murmur
 sudo mkdir -p /var/log/murmur
@@ -115,8 +146,8 @@ sudo chown murmur:murmur /var/log/murmur
 sudo chmod 0770 /var/log/murmur
 
 # Download binaries
-curl -OL https://github.com/mumble-voip/mumble/releases/download/1.2.19/murmur-static_x86-1.2.19.tar.bz2
-tar xjf murmur-static_x86-1.2.19.tar.bz2
+curl -OL4 $CURL_PROXY https://github.com/mumble-voip/mumble/releases/download/1.2.19/murmur-static_x86-1.2.19.tar.bz2
+tar xjf murmur-static_x86-1.2.19.tar.bz2 || exit
 sudo mkdir -p /opt/murmur
 sudo cp -r murmur-static_x86-1.2.19/* /opt/murmur
 sudo cp murmur-static_x86-1.2.19/murmur.ini /etc/murmur.ini
@@ -130,7 +161,8 @@ sudo sed -i 's/\#registerName=Mumble\ Server/registerName=CAPES\ -\ Mumble\ Serv
 sudo sed -i 's/port=64738/port=7000/' /etc/murmur.ini
 
 # Rotate logs
-sudo bash -c 'cat > /etc/logrotate.d/murmur <<EOF
+sudo mkdir -p /etc/logrotate.d
+sudo tee /etc/logrotate.d/murmur << EOF > /dev/null
 /var/log/murmur/*log {
     su murmur murmur
     dateext
@@ -143,10 +175,11 @@ sudo bash -c 'cat > /etc/logrotate.d/murmur <<EOF
         /bin/systemctl reload murmur.service > /dev/null 2>/dev/null || true
     endscript
 }
-EOF'
+EOF
 
 # Creating the systemd service
-sudo bash -c 'cat > /etc/systemd/system/murmur.service <<EOF
+sudo mkdir -p /etc/systemd/system
+sudo tee /etc/systemd/system/murmur.service << EOF > /dev/null
 [Unit]
 Description=Mumble Server (Murmur)
 Requires=network-online.target
@@ -161,29 +194,44 @@ ExecReload=/bin/kill -s HUP $MAINPID
 
 [Install]
 WantedBy=multi-user.target
-EOF'
+EOF
 
 # Generate the pid directory for Murmur:
-sudo bash -c 'cat > /etc/tmpfiles.d/murmur.conf <<EOF
+sudo mkdir -p /etc/tmpfiles.d
+sudo tee /etc/tmpfiles.d/murmur.conf << EOF > /dev/null
 d /var/run/murmur 775 murmur murmur
-EOF'
+EOF
+
+sudo systemd-tmpfiles --create /etc/tmpfiles.d/murmur.conf
+sudo systemctl daemon-reload
+sudo systemctl start murmur.service && sudo systemctl enable murmur.service
+
+# Configure the Murmur SuperUser account
+sudo /opt/murmur/murmur.x86 -ini /etc/murmur.ini -supw $mumblepassphrase
+
+fi
 
 ################################
 ########## Mattermost ##########
 ################################
 
 # Install dependencies
-sudo yum install epel-release mariadb-server firewalld -y
+sudo yum install epel-release mariadb-server -y
+sudo systemctl daemon-reload
+sudo systemctl start mariadb.service && sudo systemctl enable mariadb.service
+
+if systemctl -q is-active mattermost.service; then
+    echo "MatterMost is active"
+else
 
 # Configure MariaDB
-sudo systemctl start mariadb.service
 mysql -u root -e "CREATE DATABASE mattermost;"
 mysql -u root -e "GRANT ALL PRIVILEGES ON mattermost.* TO 'mattermost'@'localhost' IDENTIFIED BY '$mattermostpassphrase';"
 
 # Build Mattermost
 sudo mkdir -p /opt/mattermost/data
-sudo curl -L https://releases.mattermost.com/4.9.2/mattermost-4.9.2-linux-amd64.tar.gz -o /opt/mattermost/mattermost.tar.gz
-sudo tar -xzf /opt/mattermost/mattermost.tar.gz -C /opt/
+sudo curl -L $CURL_PROXY https://releases.mattermost.com/4.9.2/mattermost-4.9.2-linux-amd64.tar.gz -o /opt/mattermost/mattermost.tar.gz
+sudo tar -xzf /opt/mattermost/mattermost.tar.gz -C /opt/ || exit
 
 # Add the Mattermost user with no login
 sudo useradd -s /usr/sbin/nologin mattermost
@@ -200,15 +248,15 @@ sudo sed -i "s/mattermost_test/mattermost/" /opt/mattermost/config/config.json
 sudo sed -i "s/8065/5000/" /opt/mattermost/config/config.json
 
 # Create the Mattermost tables
-cd /opt/mattermost/bin/
+pushd /opt/mattermost/bin/
 sudo -u mattermost /opt/mattermost/bin/./platform
-cd -
+popd
 
 # Correct the MariaDB formatting
-mysql -u root -e "ALTER TABLE mattermost.Audits ENGINE = MyISAM;ALTER TABLE mattermost.ChannelMembers ENGINE = MyISAM;ALTER TABLE mattermost.Channels ENGINE = MyISAM;ALTER TABLE mattermost.ClusterDiscovery ENGINE = MyISAM;ALTER TABLE mattermost.Commands ENGINE = MyISAM;ALTER TABLE mattermost.CommandWebhooks ENGINE = MyISAM;ALTER TABLE mattermost.Compliances ENGINE = MyISAM;ALTER TABLE mattermost.Emoji ENGINE = MyISAM;ALTER TABLE mattermost.FileInfo ENGINE = MyISAM;ALTER TABLE mattermost.IncomingWebhooks ENGINE = MyISAM;ALTER TABLE mattermost.Jobs ENGINE = MyISAM;ALTER TABLE mattermost.Licenses ENGINE = MyISAM;ALTER TABLE mattermost.OAuthAccessData ENGINE = MyISAM;ALTER TABLE mattermost.OAuthApps ENGINE = MyISAM;ALTER TABLE mattermost.OAuthAuthData ENGINE = MyISAM;ALTER TABLE mattermost.OutgoingWebhooks ENGINE = MyISAM;ALTER TABLE mattermost.Posts ENGINE = MyISAM;ALTER TABLE mattermost.Preferences ENGINE = MyISAM;ALTER TABLE mattermost.Reactions ENGINE = MyISAM;ALTER TABLE mattermost.Sessions ENGINE = MyISAM;ALTER TABLE mattermost.Status ENGINE = MyISAM;ALTER TABLE mattermost.Systems ENGINE = MyISAM;ALTER TABLE mattermost.TeamMembers ENGINE = MyISAM;ALTER TABLE mattermost.Teams ENGINE = MyISAM;ALTER TABLE mattermost.Tokens ENGINE = MyISAM;ALTER TABLE mattermost.UserAccessTokens ENGINE = MyISAM;ALTER TABLE mattermost.Users ENGINE = MyISAM;"
+mysql -u root -e "ALTER TABLE mattermost.Audits ENGINE = MyISAM;ALTER TABLE mattermost.ChannelMembers ENGINE = MyISAM;ALTER TABLE mattermost.Channels ENGINE = MyISAM;ALTER TABLE mattermost.ClusterDiscovery ENGINE = MyISAM;ALTER TABLE mattermost.Commands ENGINE = MyISAM;ALTER TABLE mattermost.CommandWebhooks ENGINE = MyISAM;ALTER TABLE mattermost.Compliances ENGINE = MyISAM;ALTER TABLE mattermost.Emoji ENGINE = MyISAM;ALTER TABLE mattermost.FileInfo ENGINE = MyISAM;ALTER TABLE mattermost.IncomingWebhooks ENGINE = MyISAM;ALTER TABLE mattermost.Jobs ENGINE = MyISAM;ALTER TABLE mattermost.Licenses ENGINE = MyISAM;ALTER TABLE mattermost.OAuthAccessData ENGINE = MyISAM;ALTER TABLE mattermost.OAuthApps ENGINE = MyISAM;ALTER TABLE mattermost.OAuthAuthData ENGINE = MyISAM;ALTER TABLE mattermost.OutgoingWebhooks ENGINE = MyISAM;ALTER TABLE mattermost.Posts ENGINE = MyISAM;ALTER TABLE mattermost.Preferences ENGINE = MyISAM;ALTER TABLE mattermost.Reactions ENGINE = MyISAM;ALTER TABLE mattermost.Sessions ENGINE = MyISAM;ALTER TABLE mattermost.Status ENGINE = MyISAM;ALTER TABLE mattermost.Systems ENGINE = MyISAM;ALTER TABLE mattermost.TeamMembers ENGINE = MyISAM;ALTER TABLE mattermost.Teams ENGINE = MyISAM;ALTER TABLE mattermost.Tokens ENGINE = MyISAM;ALTER TABLE mattermost.UserAccessTokens ENGINE = MyISAM;ALTER TABLE mattermost.Users ENGINE = MyISAM;" || exit
 
 # Create the Mattermost service
-sudo bash -c 'cat > /etc/systemd/system/mattermost.service <<EOF
+sudo tee /etc/systemd/system/mattermost.service << EOF > /dev/null
 [Unit]
 Description=Mattermost
 After=syslog.target network.target mariadb.service
@@ -224,8 +272,13 @@ LimitNOFILE=49152
 
 [Install]
 WantedBy=multi-user.target
-EOF'
+EOF
 sudo chmod 664 /etc/systemd/system/mattermost.service
+
+sudo systemctl daemon-reload
+sudo systemctl start mattermost.service && sudo systemctl enable mattermost.service
+
+fi
 
 ################################
 ############ HackMD ############
@@ -234,13 +287,28 @@ sudo chmod 664 /etc/systemd/system/mattermost.service
 # Install dependencies
 sudo yum install npm gcc-c++ git -y
 
+if systemctl -q is-active hackmd.service; then
+    echo "HackMD is active"
+else
+
+# set npm's proxy config if needed
+if [ "$PROXY" ]; then
+    sudo npm config set proxy $PROXY
+    sudo npm config set https-proxy $PROXY
+    sudo git config --global https.proxy $PROXY
+    sudo git config --global http.proxy $PROXY
+    sudo git config --global url."https://".insteadOf git://
+fi
+
 # Stage HackMD for building
-sudo npm install -g uws node-gyp tap webpack grunt yarn
-sudo yarn add -D webpack-cli
-sudo git clone https://github.com/hackmdio/hackmd.git /opt/hackmd/
-cd /opt/hackmd
+sudo rm -rf /opt/hackmd
+sudo git clone $GIT_PROXY https://github.com/hackmdio/hackmd.git /opt/hackmd || exit
+sudo npm install -g uws node-gyp tap webpack grunt yarn || exit
+sudo yarn add -D webpack-cli || exit
+pushd /opt/hackmd
 sudo bin/setup
-cd -
+popd
+sudo rm -f yarn.lock package.json
 
 # Set up the HackMD database
 mysql -u root -e "CREATE DATABASE hackmd;"
@@ -263,7 +331,7 @@ sudo useradd -s /usr/sbin/nologin hackmd
 sudo chown -R hackmd:hackmd /opt/hackmd
 
 # Creating the HackMD service
-sudo bash -c 'cat > /etc/systemd/system/hackmd.service <<EOF
+sudo tee /etc/systemd/system/hackmd.service << EOF > /dev/null
 [Unit]
 Description=HackMD Service
 Requires=network-online.target
@@ -278,7 +346,12 @@ ExecStart=/bin/npm start production --prefix /opt/hackmd/
 
 [Install]
 WantedBy=multi-user.target
-EOF'
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl start hackmd.service && sudo systemctl enable hackmd.service
+
+fi
 
 ################################
 ########## Gitea ###############
@@ -289,6 +362,10 @@ EOF'
 # Install dependencies
 sudo yum install http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm -y
 sudo yum update git -y
+
+if systemctl -q is-active gitea.service; then
+    echo "Gitea is active"
+else
 
 # Configure MariaDB
 mysql -u root -e "CREATE DATABASE gitea;"
@@ -314,12 +391,12 @@ sudo useradd -s /usr/sbin/nologin gitea
 
 # Grab Gitea and make it a home
 sudo mkdir -p /opt/gitea
-sudo curl -L https://dl.gitea.io/gitea/master/gitea-master-linux-amd64 -o /opt/gitea/gitea
+sudo curl -L $CURL_PROXY https://dl.gitea.io/gitea/master/gitea-master-linux-amd64 -o /opt/gitea/gitea
 sudo chown -R gitea:gitea /opt/gitea
 sudo chmod 744 /opt/gitea/gitea
 
 # Create the Gitea service
-sudo bash -c 'cat > /etc/systemd/system/gitea.service <<EOF
+sudo tee /etc/systemd/system/gitea.service << EOF > /dev/null
 [Unit]
 Description=Gitea (Git with a cup of tea)
 After=syslog.target
@@ -344,7 +421,12 @@ Environment=USER=gitea HOME=/home/gitea
 
 [Install]
 WantedBy=multi-user.target
-EOF'
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl start gitea.service && sudo systemctl enable gitea.service
+
+fi
 
 ################################
 ########### TheHive ############
@@ -353,53 +435,58 @@ EOF'
 # Install Dependencies
 sudo yum install java-1.8.0-openjdk.x86_64 gcc-c++ -y
 sudo yum groupinstall "Development Tools" -y
-sudo rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
+sudo rpm --import $RPM_PROXY https://artifacts.elastic.co/GPG-KEY-elasticsearch
 sudo yum install https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.6.0.rpm https://centos7.iuscommunity.org/ius-release.rpm libffi-devel python-devel python-pip ssdeep-devel ssdeep-libs perl-Image-ExifTool file-devel -y
 sudo yum install python36u python36u-pip python36u-devel -y
 
+if systemctl -q is-active elasticsearch.service; then
+    echo "ElasticSearch is active"
+else
+
 # Configure Elasticsearch
-sudo bash -c 'cat > /etc/elasticsearch/elasticsearch.yml <<EOF
+sudo mkdir -p /etc/elasticsearch
+sudo tee /etc/elasticsearch/elasticsearch.yml << EOF > /dev/null
 network.host: 127.0.0.1
 cluster.name: hive
 script.inline: true
 thread_pool.index.queue_size: 100000
 thread_pool.search.queue_size: 100000
 thread_pool.bulk.queue_size: 1000
-EOF'
+EOF
 
 # Collect the Cortex analyzers
-sudo git clone https://github.com/TheHive-Project/Cortex-Analyzers.git /opt/cortex/
+sudo rm -rf /opt/cortex
+sudo git clone $GIT_PROXY https://github.com/TheHive-Project/Cortex-Analyzers.git /opt/cortex/
 
 # Install TheHive Project and Cortex
 # TheHive Project is the incident tracker, Cortex is your analysis engine.
 # If you're going to be using this offline, you can remove the Cortex install (sudo yum install thehive -y).
-sudo rpm --import https://dl.bintray.com/cert-bdf/rpm/repodata/repomd.xml.key
+sudo rpm --import $RPM_PROXY https://dl.bintray.com/thehive-project/rpm-stable/repodata/repomd.xml.key
 sudo yum install https://dl.bintray.com/thehive-project/rpm-stable/thehive-project-release-1.1.0-1.noarch.rpm -y
-#sudo yum install https://dl.bintray.com/cert-bdf/rpm/thehive-project-release-1.0.0-3.noarch.rpm -y
 sudo yum install thehive cortex -y
 
 # Configure TheHive Project secret key
-(cat << _EOF_
+sudo mkdir -p /etc/thehive
+sudo tee -a /etc/thehive/application.conf << _EOF_ > /dev/null
 # Secret key
 # ~~~~~
 # The secret key is used to secure cryptographics functions.
 # If you deploy your application to several instances be sure to use the same key!
-play.crypto.secret="$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head -n 1)"
+play.http.secret.key="$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head -n 1)"
 _EOF_
-) | sudo tee -a /etc/thehive/application.conf
 
 # Configure Cortex secret key
-(cat << _EOF_
+sudo mkdir -p /etc/cortex
+sudo tee -a /etc/cortex/application.conf << _EOF_ > /dev/null
 # Secret key
 # ~~~~~
 # The secret key is used to secure cryptographics functions.
 # If you deploy your application to several instances be sure to use the same key!
 play.crypto.secret="$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head -n 1)"
 _EOF_
-) | sudo tee -a /etc/cortex/application.conf
 
 # Add the future Python package, install the Cortex Analyzers, and adjust the Python 3 path to 3.6
-sudo pip install future
+sudo pip install $PIP_PROXY future
 for d in /opt/cortex/analyzers/*/ ; do (cat $d/requirements.txt >> requirements.staged); done
 sort requirements.staged | uniq > requirements.txt
 rm requirements.staged
@@ -410,8 +497,14 @@ sed -i "s/urllib2/urllib2\;python_version<='2.7'/" requirements.txt
 sed -i "s/ssdeep/ssdeep\;python_version>='3.5'/" requirements.txt
 echo "urllib3;python_version>='3.5'" >> requirements.txt
 sed -i '/requestscortexutils/d' requirements.txt
-sudo /usr/bin/pip2.7 install -r requirements.txt
-sudo /usr/bin/pip3.6 install -r requirements.txt
+sudo /usr/bin/pip2.7 install $PIP_PROXY -r requirements.txt
+
+# HACK: why must I manually install these?
+sudo /usr/bin/pip3.6 install $PIP_PROXY six
+sudo /usr/bin/pip3.6 install $PIP_PROXY pytest-runner
+sudo /usr/bin/pip3.6 install $PIP_PROXY cffi
+
+sudo /usr/bin/pip3.6 install $PIP_PROXY -r requirements.txt
 rm requirements.txt
 for d in /opt/cortex/analyzers/* ; do (sudo /usr/bin/sed -i 's/python3/python3.6/' $d/*.py); done
 
@@ -439,7 +532,7 @@ sudo chmod 640 /etc/cortex/application.conf
 sudo sed -i '16i\\t-Dhttp.port=9001 \\' /etc/systemd/system/cortex.service
 
 # Connect TheHive to Cortex
-sudo bash -c 'cat >> /etc/thehive/application.conf <<EOF
+sudo tee -a /etc/thehive/application.conf << EOF > /dev/null
 # Cortex
 play.modules.enabled += connectors.cortex.CortexConnector
 cortex {
@@ -448,7 +541,14 @@ cortex {
   key = "Cortex-API-key-see-post-installation-instructions"
   }
 }
-EOF'
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl start elasticsearch.service && sudo systemctl enable elasticsearch.service
+sudo systemctl start cortex.service && sudo systemctl enable cortex.service
+sudo systemctl start thehive.service && sudo systemctl enable thehive.service
+
+fi
 
 ################################
 ############ Nginx #############
@@ -462,11 +562,11 @@ sudo htpasswd -bc /etc/nginx/.htpasswd operator $capespassphrase
 sudo sed -i '43 a \\tauth_basic "CAPES Login";' /etc/nginx/nginx.conf
 sudo sed -i '44 a \\tauth_basic_user_file /etc/nginx/.htpasswd;' /etc/nginx/nginx.conf
 
-# Update the landing page index file
-sed -i "s/your-ip/$IP/" landing_page/index.html
-
 # Move landing page framework into Nginx's working directory
 sudo cp -r landing_page/* /usr/share/nginx/html/
+
+# Update the landing page index file
+sudo sed -i "s/your-ip/$IP/" /usr/share/nginx/html/index.html
 
 # Perform a little housekeeping
 sudo rm /usr/share/nginx/html/build_operate_maintain.md /usr/share/nginx/html/deploy_landing_page.sh /usr/share/nginx/html/README.md
@@ -476,31 +576,45 @@ sudo rm /usr/share/nginx/html/build_operate_maintain.md /usr/share/nginx/html/de
 ################################
 
 # Collect CyberChef
-sudo curl https://gchq.github.io/CyberChef/cyberchef.htm -o /usr/share/nginx/html/cyberchef.htm
+sudo curl $CURL_PROXY https://gchq.github.io/CyberChef/cyberchef.htm -o /usr/share/nginx/html/cyberchef.htm
+
+sudo systemctl daemon-reload
+sudo systemctl start nginx.service && sudo systemctl enable nginx.service
 
 ################################
 ######## Heartbeat #############
 ################################
 
 sudo yum install -y https://artifacts.elastic.co/downloads/beats/heartbeat/heartbeat-5.6.5-x86_64.rpm
+sudo mkdir -p /etc/heartbeat
 sudo cp beats/heartbeat.yml /etc/heartbeat/heartbeat.yml
 sudo sed -i "s/passphrase/$capespassphrase/" /etc/heartbeat/heartbeat.yml
+sudo systemctl daemon-reload
+sudo systemctl start heartbeat.service && sudo systemctl enable heartbeat.service
 
 ################################
 ######### Filebeat #############
 ################################
+
 sudo yum install -y https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-5.6.5-x86_64.rpm
+sudo mkdir -p /etc/filebeat
 sudo cp beats/filebeat.yml /etc/filebeat/filebeat.yml
-sudo /usr/share/elasticsearch/bin/elasticsearch-plugin install ingest-user-agent
-sudo /usr/share/elasticsearch/bin/elasticsearch-plugin install ingest-geoip
+sudo bash -c "$ES_PROXY /usr/share/elasticsearch/bin/elasticsearch-plugin install ingest-user-agent"
+sudo bash -c "$ES_PROXY /usr/share/elasticsearch/bin/elasticsearch-plugin install ingest-geoip"
+
+sudo systemctl daemon-reload
+sudo systemctl start filebeat.service && sudo systemctl enable filebeat.service
 
 ################################
 ######## Metricbeat ############
 ################################
 
 sudo yum install -y https://artifacts.elastic.co/downloads/beats/metricbeat/metricbeat-5.6.5-x86_64.rpm
+sudo mkdir -p /etc/metricbeat
 sudo cp beats/metricbeat.yml /etc/metricbeat/metricbeat.yml
 sudo sed -i "s/hostname/$HOSTNAME/" /etc/metricbeat/metricbeat.yml
+sudo systemctl daemon-reload
+sudo systemctl start metricbeat.service && sudo systemctl enable metricbeat.service
 
 ################################
 ########### Kibana #############
@@ -508,11 +622,14 @@ sudo sed -i "s/hostname/$HOSTNAME/" /etc/metricbeat/metricbeat.yml
 
 sudo yum install -y https://artifacts.elastic.co/downloads/kibana/kibana-5.6.5-x86_64.rpm
 sudo sed -i "s/#server\.host: \"localhost\"/server\.host: \"0\.0\.0\.0\"/" /etc/kibana/kibana.yml
+sudo systemctl daemon-reload
+sudo systemctl start kibana.service && sudo systemctl enable kibana.service
 
 ################################
 ########## Firewall ############
 ################################
 
+sudo yum install firewalld -y
 # Port 80 - Nginx
 # Port 3000 - HackMD
 # Port 4000 - Gitea
@@ -523,46 +640,6 @@ sudo sed -i "s/#server\.host: \"localhost\"/server\.host: \"0\.0\.0\.0\"/" /etc/
 # Port 9001 - Cortex (TheHive Analyzer Plugin)
 sudo firewall-cmd --add-port=80/tcp --add-port=3000/tcp --add-port=4000/tcp --add-port=5000/tcp --add-port=5601/tcp --add-port=9000/tcp --add-port=9001/tcp --add-port=7000/tcp --add-port=7000/udp --permanent
 sudo firewall-cmd --reload
-
-################################
-########## Services ############
-################################
-
-# Prepare the service environment
-sudo systemd-tmpfiles --create /etc/tmpfiles.d/murmur.conf
-sudo systemctl daemon-reload
-
-# Configure services for autostart
-sudo systemctl enable nginx.service
-sudo systemctl enable kibana.service
-sudo systemctl enable heartbeat.service
-sudo systemctl enable filebeat.service
-sudo systemctl enable metricbeat.service
-sudo systemctl enable mariadb.service
-sudo systemctl enable hackmd.service
-sudo systemctl enable gitea.service
-sudo systemctl enable mattermost.service
-sudo systemctl enable elasticsearch.service
-sudo systemctl enable thehive.service
-sudo systemctl enable cortex.service
-sudo systemctl enable murmur.service
-
-# Start all the services
-sudo systemctl start elasticsearch.service
-sudo systemctl start kibana.service
-sudo systemctl start cortex.service
-sudo systemctl start gitea.service
-sudo systemctl start hackmd.service
-sudo systemctl start thehive.service
-sudo systemctl start murmur.service
-sudo systemctl start nginx.service
-sudo systemctl start heartbeat.service
-sudo systemctl start metricbeat.service
-sudo systemctl start filebeat.service
-sudo systemctl start mattermost.service
-
-# Configure the Murmur SuperUser account
-sudo /opt/murmur/murmur.x86 -ini /etc/murmur.ini -supw $mumblepassphrase
 
 ################################
 ### Secure MySQL installtion ###
